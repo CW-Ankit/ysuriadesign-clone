@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { sound } from "@/lib/sound";
 
 interface Canvas3DProps {
@@ -34,7 +35,7 @@ export function Canvas3D({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
 
     // Scene & Camera
     const scene = new THREE.Scene();
@@ -293,23 +294,59 @@ export function Canvas3D({
     scene.add(figureGroup);
 
     const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(
       "/models/figure.v2.glb",
       (gltf) => {
         const model = gltf.scene;
-        model.scale.setScalar(2.1);
+        model.scale.setScalar(2.0);
+        let headBone: THREE.Bone | null = null;
         model.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
+          if ((child as THREE.Mesh).isMesh || (child as THREE.SkinnedMesh).isSkinnedMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
             const mesh = child as THREE.Mesh;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
             if (mesh.material) {
               const stdMat = mesh.material as THREE.MeshStandardMaterial;
-              stdMat.roughness = 0.8;
-              stdMat.metalness = 0.15;
+              stdMat.roughness = 0.88;
+              stdMat.metalness = 0.08;
+              stdMat.side = THREE.DoubleSide;
             }
           }
+          if ((child as THREE.Bone).isBone && child.name === "head") {
+            headBone = child as THREE.Bone;
+          }
         });
+
+        if (headBone) {
+          const eyeCanvas = document.createElement("canvas");
+          eyeCanvas.width = 64;
+          eyeCanvas.height = 64;
+          const ctx = eyeCanvas.getContext("2d");
+          if (ctx) {
+            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+            grad.addColorStop(0.2, "rgba(255, 220, 160, 0.9)");
+            grad.addColorStop(0.5, "rgba(255, 80, 40, 0.3)");
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 64);
+          }
+          const eyeTexture = new THREE.CanvasTexture(eyeCanvas);
+          const eyeMat = new THREE.SpriteMaterial({
+            map: eyeTexture,
+            color: new THREE.Color("#ffeedd"),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          });
+          for (const xOff of [-0.038, 0.038]) {
+            const eyeSprite = new THREE.Sprite(eyeMat);
+            eyeSprite.position.set(xOff, 0.85, 0.12);
+            eyeSprite.scale.setScalar(0.045);
+            (headBone as THREE.Bone).add(eyeSprite);
+          }
+        }
+
         figureGroup.add(model);
       },
       undefined,
@@ -366,12 +403,13 @@ export function Canvas3D({
     };
     window.addEventListener("resize", handleResize);
 
-    // Clock
-    const clock = new THREE.Clock();
+    // High-precision animation timer (Three.js Timer)
+    const timer = new THREE.Timer();
 
     const animate = () => {
-      const delta = clock.getDelta();
-      const time = clock.getElapsedTime();
+      timer.update();
+      const delta = timer.getDelta();
+      const time = timer.getElapsed();
 
       // Smooth inertia scroll interpolation
       currentProgress += (targetProgress - currentProgress) * 0.06;
