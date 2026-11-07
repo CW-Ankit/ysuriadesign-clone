@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 import { sound } from "@/lib/sound";
 import { PROJECTS } from "@/data/site-data";
 
@@ -907,83 +908,114 @@ export default function Canvas3D({
     grassInstanced.instanceMatrix.needsUpdate = true;
     workGroup.add(grassInstanced);
 
-    // Skinned Hero Character Model Loading (`figure.v2.glb` on Chapter 3 Pedestal)
-    const figureGroup = new THREE.Group();
-    figureGroup.position.set(0, 3.4, 0); // Placed at center of Chapter 3 pedestal
-    workGroup.add(figureGroup);
+    // -------------------------------------------------------------
+    // Skinned Hero Character Model Loading (`figure.v2.glb`)
+    // -------------------------------------------------------------
+    // 1. Chapter 0 (Origin) Main Hero Figure - floating inside Reticle & Monolith Ring
+    const heroFigureGroup = new THREE.Group();
+    heroFigureGroup.position.set(0, -1.8, 0); // Perfectly centered within reticle crosshairs
+    originGroup.add(heroFigureGroup);
 
-    const innerFigureGroup = new THREE.Group();
-    figureGroup.add(innerFigureGroup);
+    const innerHeroFigure = new THREE.Group();
+    heroFigureGroup.add(innerHeroFigure);
 
-    const figureBones: Record<string, THREE.Bone> = {};
+    // 2. Chapter 3 (The Work) Hero Figure - stands atop central basalt pedestal
+    const workFigureGroup = new THREE.Group();
+    workFigureGroup.position.set(0, 3.4, 0); // Atop Chapter 3 platform
+    workGroup.add(workFigureGroup);
 
-    const loader = new GLTFLoader();
-    loader.setMeshoptDecoder(MeshoptDecoder);
-    loader.load(
-      "/models/figure.v2.glb",
-      (gltf) => {
-        const model = gltf.scene;
-        model.scale.setScalar(2.0);
-        let headBone: THREE.Bone | null = null;
-        model.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh || (child as THREE.SkinnedMesh).isSkinnedMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const mesh = child as THREE.Mesh;
-            if (mesh.material) {
-              const stdMat = (mesh.material as THREE.MeshStandardMaterial).clone();
-              stdMat.roughness = 0.45;
-              stdMat.metalness = 0.1;
-              stdMat.side = THREE.DoubleSide;
-              mesh.material = stdMat;
-            }
+    const innerWorkFigure = new THREE.Group();
+    workFigureGroup.add(innerWorkFigure);
+
+    const allBonesList: Record<string, THREE.Bone>[] = [];
+
+    // Asynchronously wait for MeshoptDecoder WebAssembly instantiation before GLTF parsing
+    MeshoptDecoder.ready
+      .then(() => {
+        const loader = new GLTFLoader();
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        loader.load(
+          "/models/figure.v2.glb",
+          (gltf) => {
+            const model = gltf.scene;
+            model.scale.setScalar(2.0);
+
+            const setupModel = (targetGroup: THREE.Object3D) => {
+              const bones: Record<string, THREE.Bone> = {};
+              let headBone: THREE.Bone | null = null;
+              targetGroup.traverse((child) => {
+                if ((child as THREE.Mesh).isMesh || (child as THREE.SkinnedMesh).isSkinnedMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                  const mesh = child as THREE.Mesh;
+                  if (mesh.material) {
+                    const stdMat = (mesh.material as THREE.MeshStandardMaterial).clone();
+                    stdMat.roughness = 0.45;
+                    stdMat.metalness = 0.1;
+                    stdMat.side = THREE.DoubleSide;
+                    mesh.material = stdMat;
+                  }
+                }
+                if ((child as THREE.Bone).isBone) {
+                  const bone = child as THREE.Bone;
+                  bones[bone.name] = bone;
+                  if (bone.name === "head") {
+                    headBone = bone;
+                  }
+                }
+              });
+
+              // Glowing Eye Sprites attached to head bone
+              if (headBone) {
+                const eyeCanvas = document.createElement("canvas");
+                eyeCanvas.width = 64;
+                eyeCanvas.height = 64;
+                const ctx = eyeCanvas.getContext("2d");
+                if (ctx) {
+                  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+                  grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+                  grad.addColorStop(0.2, "rgba(255, 220, 160, 0.9)");
+                  grad.addColorStop(0.5, "rgba(255, 80, 40, 0.3)");
+                  grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+                  ctx.fillStyle = grad;
+                  ctx.fillRect(0, 0, 64, 64);
+                }
+                const eyeTexture = new THREE.CanvasTexture(eyeCanvas);
+                const eyeMat = new THREE.SpriteMaterial({
+                  map: eyeTexture,
+                  color: new THREE.Color("#ffeedd"),
+                  blending: THREE.AdditiveBlending,
+                  depthWrite: false,
+                });
+                for (const xOff of [-0.038, 0.038]) {
+                  const eyeSprite = new THREE.Sprite(eyeMat);
+                  eyeSprite.position.set(xOff, 0.85, 0.12);
+                  eyeSprite.scale.setScalar(0.045);
+                  (headBone as THREE.Bone).add(eyeSprite);
+                }
+              }
+
+              allBonesList.push(bones);
+            };
+
+            // 1. Add original model to Chapter 0 Hero
+            innerHeroFigure.add(model);
+            setupModel(model);
+
+            // 2. Clone model for Chapter 3 Work Pedestal
+            const workModel = SkeletonUtils.clone(model);
+            innerWorkFigure.add(workModel);
+            setupModel(workModel);
+          },
+          undefined,
+          (err) => {
+            console.warn("Figure glb loading fallback:", err);
           }
-          if ((child as THREE.Bone).isBone) {
-            const bone = child as THREE.Bone;
-            figureBones[bone.name] = bone;
-            if (bone.name === "head") {
-              headBone = bone;
-            }
-          }
-        });
-
-        // Glowing Eye Sprites
-        if (headBone) {
-          const eyeCanvas = document.createElement("canvas");
-          eyeCanvas.width = 64;
-          eyeCanvas.height = 64;
-          const ctx = eyeCanvas.getContext("2d");
-          if (ctx) {
-            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-            grad.addColorStop(0.2, "rgba(255, 220, 160, 0.9)");
-            grad.addColorStop(0.5, "rgba(255, 80, 40, 0.3)");
-            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 64, 64);
-          }
-          const eyeTexture = new THREE.CanvasTexture(eyeCanvas);
-          const eyeMat = new THREE.SpriteMaterial({
-            map: eyeTexture,
-            color: new THREE.Color("#ffeedd"),
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          });
-          for (const xOff of [-0.038, 0.038]) {
-            const eyeSprite = new THREE.Sprite(eyeMat);
-            eyeSprite.position.set(xOff, 0.85, 0.12);
-            eyeSprite.scale.setScalar(0.045);
-            (headBone as THREE.Bone).add(eyeSprite);
-          }
-        }
-
-        innerFigureGroup.add(model);
-      },
-      undefined,
-      (err) => {
-        console.warn("Figure glb loading fallback:", err);
-      }
-    );
+        );
+      })
+      .catch((err) => {
+        console.warn("MeshoptDecoder ready error:", err);
+      });
 
     // 4 Orbiting Project Panels (Radius 5.7m, Center Y: 3.4m)
     const textureLoader = new THREE.TextureLoader();
@@ -1493,24 +1525,34 @@ export default function Canvas3D({
         grp.position.y = base.basePos.y + Math.sin(time * 1.5 + i * 1.5) * 0.08;
       });
 
-      // Procedural floating, head tracking and bone animation on Figure
-      innerFigureGroup.position.y = Math.sin(time * 1.5) * 0.12;
-      innerFigureGroup.rotation.y = Math.sin(time * 0.5) * 0.08 + targetNdc.x * 0.15;
-      innerFigureGroup.rotation.x = -targetNdc.y * 0.1;
+      // Procedural floating, head tracking and bone animation on all Figures
+      const figureY = Math.sin(time * 1.5) * 0.12;
+      const figureRotY = Math.sin(time * 0.5) * 0.08 + targetNdc.x * 0.15;
+      const figureRotX = -targetNdc.y * 0.1;
 
-      if (figureBones.head) {
-        figureBones.head.rotation.y = targetNdc.x * 0.3 + Math.sin(time * 1.2) * 0.05;
-        figureBones.head.rotation.x = -targetNdc.y * 0.25 + Math.sin(time * 1.8) * 0.03;
-      }
-      if (figureBones.spine) {
-        figureBones.spine.rotation.x = Math.sin(time * 1.5) * 0.04;
-      }
-      if (figureBones.upper_armL) {
-        figureBones.upper_armL.rotation.z = -0.3 + Math.sin(time * 1.2) * 0.06;
-      }
-      if (figureBones.upper_armR) {
-        figureBones.upper_armR.rotation.z = 0.3 - Math.sin(time * 1.2) * 0.06;
-      }
+      innerHeroFigure.position.y = figureY;
+      innerHeroFigure.rotation.y = figureRotY;
+      innerHeroFigure.rotation.x = figureRotX;
+
+      innerWorkFigure.position.y = figureY;
+      innerWorkFigure.rotation.y = figureRotY;
+      innerWorkFigure.rotation.x = figureRotX;
+
+      allBonesList.forEach((bones) => {
+        if (bones.head) {
+          bones.head.rotation.y = targetNdc.x * 0.3 + Math.sin(time * 1.2) * 0.05;
+          bones.head.rotation.x = -targetNdc.y * 0.25 + Math.sin(time * 1.8) * 0.03;
+        }
+        if (bones.spine) {
+          bones.spine.rotation.x = Math.sin(time * 1.5) * 0.04;
+        }
+        if (bones.upper_armL) {
+          bones.upper_armL.rotation.z = -0.3 + Math.sin(time * 1.2) * 0.06;
+        }
+        if (bones.upper_armR) {
+          bones.upper_armR.rotation.z = 0.3 - Math.sin(time * 1.2) * 0.06;
+        }
+      });
 
       // Animate Chapter 4 portal ring rotation
       portalMesh.rotation.z += 0.01;
