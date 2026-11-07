@@ -1391,3 +1391,84 @@ body.footer-on .rail a {
     justify-items: start;
   }
 }
+
+/* Additional Responsive & Accessibility Rules from original website */
+@media (prefers-reduced-motion: reduce) {
+  .ch-title .ch-char,
+  .ch-line {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .wm-head {
+    grid-template-columns: 1fr !important;
+  }
+  .wm-close {
+    grid-area: auto / 1 !important;
+    justify-self: start !important;
+  }
+  .wm-thumb {
+    width: 84px !important;
+  }
+  .work-modal {
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+  }
+  .wm-glass {
+    max-height: calc(100vh - 24px) !important;
+    grid-template-rows: auto auto auto !important;
+    max-height: calc(100dvh - 24px) !important;
+    border-radius: 18px !important;
+    gap: 14px !important;
+    padding: 16px !important;
+  }
+  .wm-stage {
+    max-height: none !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .ft-mail,
+  .ft-links a,
+  .ft-again {
+    cursor: pointer !important;
+  }
+  .wm-close,
+  .wm-nav button {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .wm-close,
+  .wm-nav button,
+  .wm-thumb {
+    cursor: pointer !important;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .work-modal {
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+  }
+  .wm-glass {
+    max-height: calc(100vh - 24px) !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr) !important;
+    max-height: calc(100dvh - 24px) !important;
+    border-radius: 18px !important;
+    gap: 12px 18px !important;
+    width: min(100%, 980px) !important;
+    padding: 16px !important;
+  }
+  .wm-head {
+    grid-area: 1 / 1 !important;
+  }
+  .wm-stage {
+    max-height: calc(100vh - 56px) !important;
+    grid-area: 1 / 2 / 4 !important;
+    align-self: center !important;
+    max-height: calc(100dvh - 56px) !important;
+  }
+  .wm-foot {
+    grid-area: 3 / 1 !important;
+  }
+}
