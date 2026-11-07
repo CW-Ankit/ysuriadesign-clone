@@ -81,7 +81,90 @@ function createLensDirtTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-// Chapter Environment & Grading Profiles (extracted directly from Rg presets in main.js)
+// Procedural Monospace HUD Telemetry Label Generator (replica of original l_ / s_)
+function createHudLabel(
+  initialLines: string[],
+  planeW: number,
+  planeH: number,
+  canvasW: number = 640,
+  canvasH: number = 104
+): THREE.Mesh {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext("2d");
+
+  const draw = (lines: string[]) => {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvasW, canvasH);
+    ctx.font = '600 28px "Geist Mono", monospace';
+    ctx.fillStyle = "#ff3322";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.shadowColor = "#ff2412";
+    ctx.shadowBlur = 10;
+
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 16, 16 + i * 36);
+    });
+  };
+
+  draw(initialLines);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const mat = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const geo = new THREE.PlaneGeometry(planeW, planeH);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 20;
+  mesh.userData.draw = (newLines: string[]) => {
+    draw(newLines);
+    texture.needsUpdate = true;
+  };
+  return mesh;
+}
+
+// Glowing Reticle Crosshairs Laser Ribbon Generator (replica of original u_)
+function createReticleLaser(
+  pA: [number, number, number],
+  pB: [number, number, number],
+  width: number = 0.22,
+  color: string = "#ff2a18"
+): THREE.Mesh {
+  const vA = new THREE.Vector3(...pA);
+  const vB = new THREE.Vector3(...pB);
+  const dir = new THREE.Vector3().subVectors(vB, vA);
+  const length = dir.length();
+  const mid = new THREE.Vector3().addVectors(vA, vB).multiplyScalar(0.5);
+
+  const geo = new THREE.PlaneGeometry(width, length);
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(color).multiplyScalar(3.5),
+    transparent: true,
+    opacity: 0.9,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(mid);
+
+  const angle = Math.atan2(dir.y, dir.x) - Math.PI / 2;
+  mesh.rotation.z = angle;
+
+  return mesh;
+}
+
+// Chapter Environment & Grading Profiles (Tuned for razor-sharp cinematic clarity)
 const CHAPTER_PRESETS = [
   // 0: Origin
   {
@@ -89,11 +172,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#05080a",
     hemiSky: "#5f7f8e",
     bloom: 1.05,
-    streak: 0.55,
+    streak: 0.18,
     streakTint: new THREE.Color("#ff4a38"),
-    lens: 0.06,
-    ca: 0.0036,
-    grain: 0.075,
+    lens: 0.012,
+    ca: 0.0016,
+    grain: 0.06,
     vignette: 0.62,
     exposure: 1.0,
     lift: new THREE.Vector3(0.004, 0.008, 0.012),
@@ -106,11 +189,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#070c0e",
     hemiSky: "#527584",
     bloom: 1.15,
-    streak: 0.55,
+    streak: 0.2,
     streakTint: new THREE.Color("#ff4a38"),
-    lens: 0.06,
-    ca: 0.0038,
-    grain: 0.08,
+    lens: 0.015,
+    ca: 0.0018,
+    grain: 0.065,
     vignette: 0.64,
     exposure: 0.98,
     lift: new THREE.Vector3(0.006, 0.01, 0.014),
@@ -123,11 +206,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#09060c",
     hemiSky: "#826b8e",
     bloom: 1.35,
-    streak: 0.85,
+    streak: 0.25,
     streakTint: new THREE.Color("#ff4230"),
-    lens: 0.08,
-    ca: 0.0055,
-    grain: 0.085,
+    lens: 0.02,
+    ca: 0.0022,
+    grain: 0.07,
     vignette: 0.68,
     exposure: 1.06,
     lift: new THREE.Vector3(0.012, 0.006, 0.016),
@@ -140,11 +223,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#07070b",
     hemiSky: "#62738e",
     bloom: 1.25,
-    streak: 0.6,
+    streak: 0.2,
     streakTint: new THREE.Color("#ff3624"),
-    lens: 0.06,
-    ca: 0.004,
-    grain: 0.075,
+    lens: 0.016,
+    ca: 0.0018,
+    grain: 0.06,
     vignette: 0.62,
     exposure: 1.04,
     lift: new THREE.Vector3(0.006, 0.008, 0.014),
@@ -157,11 +240,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#0a0403",
     hemiSky: "#8e5246",
     bloom: 1.45,
-    streak: 0.95,
+    streak: 0.28,
     streakTint: new THREE.Color("#ff2a14"),
-    lens: 0.09,
-    ca: 0.0065,
-    grain: 0.09,
+    lens: 0.022,
+    ca: 0.0025,
+    grain: 0.075,
     vignette: 0.72,
     exposure: 1.1,
     lift: new THREE.Vector3(0.016, 0.004, 0.004),
@@ -174,11 +257,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#04080d",
     hemiSky: "#4b6c82",
     bloom: 1.3,
-    streak: 0.7,
+    streak: 0.22,
     streakTint: new THREE.Color("#ff3220"),
-    lens: 0.07,
-    ca: 0.0045,
-    grain: 0.08,
+    lens: 0.015,
+    ca: 0.0018,
+    grain: 0.065,
     vignette: 0.65,
     exposure: 1.02,
     lift: new THREE.Vector3(0.004, 0.01, 0.016),
@@ -191,11 +274,11 @@ const CHAPTER_PRESETS = [
     fogColor: "#030406",
     hemiSky: "#3a4a58",
     bloom: 1.1,
-    streak: 0.5,
+    streak: 0.15,
     streakTint: new THREE.Color("#ff2812"),
-    lens: 0.05,
-    ca: 0.003,
-    grain: 0.07,
+    lens: 0.01,
+    ca: 0.0014,
+    grain: 0.055,
     vignette: 0.75,
     exposure: 0.95,
     lift: new THREE.Vector3(0.002, 0.004, 0.006),
@@ -204,7 +287,7 @@ const CHAPTER_PRESETS = [
   },
 ];
 
-// Exact Cylindrical Helix Chapter World Configurations (Extracted from analysis/main.js)
+// Cylindrical Helix Chapter World Configurations
 const CHAPTER_CONFIGS = [
   { id: "origin", origin: new THREE.Vector3(0, 0, 0), yaw: 1.11701 },
   { id: "memory", origin: new THREE.Vector3(-126.082, -65, -61.494), yaw: 1.11701 },
@@ -232,8 +315,6 @@ export default function Canvas3D({
   onFooterVisibility,
 }: Canvas3DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Store callbacks in ref so Canvas3D NEVER remounts on parent state changes
   const callbacksRef = useRef({ onProgressUpdate, onSelectProject, onFooterVisibility });
   callbacksRef.current = { onProgressUpdate, onSelectProject, onFooterVisibility };
 
@@ -246,7 +327,7 @@ export default function Canvas3D({
     // -------------------------------------------------------------
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#05080a");
-    scene.fog = new THREE.FogExp2("#05080a", 0.009);
+    scene.fog = new THREE.FogExp2("#05080a", 0.008);
 
     const camera = new THREE.PerspectiveCamera(
       35,
@@ -268,9 +349,7 @@ export default function Canvas3D({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    // -------------------------------------------------------------
     // Lighting Rig
-    // -------------------------------------------------------------
     const hemiLight = new THREE.HemisphereLight("#5f7f8e", "#050505", 0.4);
     scene.add(hemiLight);
 
@@ -285,9 +364,7 @@ export default function Canvas3D({
     const redLight = new THREE.PointLight("#ff2a1a", 4.5, 90);
     scene.add(redLight);
 
-    // -------------------------------------------------------------
-    // Chapter Root Groups (Placed at exact cylindrical helix coords)
-    // -------------------------------------------------------------
+    // Chapter Root Groups
     const chapterGroups: THREE.Group[] = [];
     CHAPTER_CONFIGS.forEach((cfg) => {
       const grp = new THREE.Group();
@@ -310,77 +387,171 @@ export default function Canvas3D({
     ] = chapterGroups;
 
     // -------------------------------------------------------------
-    // Camera Spline Path (CatmullRom Curve along helix trajectory)
+    // Dual Spline Architecture (PosCurve + LookCurve + FovList)
     // -------------------------------------------------------------
-    const camWaypoints = [
-      // Chapter 0: Origin
-      toWorld(0, 0, 0.4, 38),
-      toWorld(0, 5, 1.2, 26),
-      toWorld(0, -5.5, 2.4, 18),
-      toWorld(0, -2, 7.5, 11),
-      toWorld(0, 1.5, 2, 5.5),
-      toWorld(0, 1.2, -16, -1),
-      // Transition 0 -> 1
-      toWorld(0, 0, 0, 0).lerp(toWorld(1, 0, 0, 0), 0.62).add(new THREE.Vector3(0, 18, 0)),
-      // Chapter 1: Memory
-      toWorld(1, 9, 7, 17),
-      toWorld(1, 4.5, 2.4, 10),
-      toWorld(1, -1.2, 1.7, 7.8),
-      toWorld(1, -6.8, 2.5, 6.4),
-      toWorld(1, -4, 6, -2),
-      // Transition 1 -> 2
-      toWorld(1, 0, 0, 0).lerp(toWorld(2, 0, 0, 0), 0.55).add(new THREE.Vector3(0, 14, 0)),
-      // Chapter 2: Refraction
-      toWorld(2, 15, 4.5, 30),
-      toWorld(2, 7, 2.1, 15),
-      toWorld(2, 2.2, 1.4, 10),
-      toWorld(2, -4.8, 2.5, 8.8),
-      toWorld(2, 0, 3.5, 4),
-      toWorld(2, 0, 2.8, -8),
-      // Chapter 3: The Work
-      toWorld(3, 15, 10, 27),
-      toWorld(3, 7.8, 5.4, 12.6),
-      // Orbiting panels shots
-      toWorld(3, 3.2, 4.8, 8.5),
-      toWorld(3, 7.2, 4.2, -1.5),
-      toWorld(3, -2.5, 4.8, -8.2),
-      toWorld(3, -7.5, 4.5, 2.2),
-      toWorld(3, -0.4, 2.2, 1.7),
-      // Chapter 4: Threshold
+    const shotData = [
+      // Ch0: Origin
+      { pos: toWorld(0, 0, 0.4, 38), look: toWorld(0, 0, 0, 0), fov: 28 },
+      { pos: toWorld(0, 5, 1.2, 26), look: toWorld(0, 0, 0.2, 0), fov: 32 },
+      { pos: toWorld(0, -5.5, 2.4, 18), look: toWorld(0, 0, 0, 0), fov: 36 },
+      { pos: toWorld(0, -2, 7.5, 11), look: toWorld(0, 0, -1.5, 0), fov: 40 },
+      { pos: toWorld(0, 1.5, 2, 5.5), look: toWorld(0, 0, -9, -2), fov: 46 },
+      { pos: toWorld(0, 1.2, -16, -1), look: toWorld(0, 0, -40, -18), fov: 54 },
+
+      // Transition Ch0 -> Ch1
+      { pos: toWorld(0, 0, 0, 0).lerp(toWorld(1, 0, 0, 0), 0.62).add(new THREE.Vector3(0, 18, 0)), look: toWorld(1, 0, 2, 0), fov: 50 },
+
+      // Ch1: Memory
+      { pos: toWorld(1, 9, 7, 17), look: toWorld(1, 0, 1.4, 0), fov: 38 },
+      { pos: toWorld(1, 4.5, 2.4, 10), look: toWorld(1, -0.6, 1.7, -0.4), fov: 34 },
+      { pos: toWorld(1, -1.2, 1.7, 7.8), look: toWorld(1, -1.6, 1.9, -1.2), fov: 32 },
+      { pos: toWorld(1, -6.8, 2.5, 6.4), look: toWorld(1, -4.2, 2.4, 0.9), fov: 34 },
+      { pos: toWorld(1, -4, 6, -2), look: toWorld(1, 8, 4, -24), fov: 42 },
+
+      // Transition Ch1 -> Ch2
+      { pos: toWorld(1, 0, 0, 0).lerp(toWorld(2, 0, 0, 0), 0.55).add(new THREE.Vector3(0, 14, 0)), look: toWorld(2, 0, 3, 0), fov: 46 },
+
+      // Ch2: Refraction (Flying directly through the glass frame window)
+      { pos: toWorld(2, 15, 4.5, 30), look: toWorld(2, 0, 3.5, 0), fov: 34 },
+      { pos: toWorld(2, 7, 2.1, 15), look: toWorld(2, 0, 3.4, 0), fov: 34 },
+      { pos: toWorld(2, 2.2, 1.4, 10), look: toWorld(2, 0, 3.3, 0), fov: 32 },
+      { pos: toWorld(2, -4.8, 2.5, 8.8), look: toWorld(2, 0, 3.9, 0), fov: 34 },
+      { pos: toWorld(2, 0.05, 4, 6), look: toWorld(2, 0.05, 4, -4), fov: 38 },
+      { pos: toWorld(2, 0.05, 4, 1.4), look: toWorld(2, 0.05, 4, -6), fov: 44 },
+      { pos: toWorld(2, 0.05, 4, -2.5), look: toWorld(2, 0.05, 4, -12), fov: 52 },
+      { pos: toWorld(2, 0.05, 4, -14), look: toWorld(2, 0.05, 4, -30), fov: 46 },
+
+      // Ch3: The Work (orbiting project panels + figure)
+      { pos: toWorld(3, 15, 10, 27), look: toWorld(3, 0, 3.6, 0), fov: 40 },
+      { pos: toWorld(3, 7.8, 5.4, 12.6), look: toWorld(3, 0, 3.5, 0), fov: 34 },
+      { pos: toWorld(3, 3.22 * 1.5, 4.35, 4.7 * 1.5), look: toWorld(3, 3.22 * 0.7, 3.75, 4.7 * 0.7), fov: 33 },
+      { pos: toWorld(3, 5.2, 3.8, 2.8), look: toWorld(3, 0, 3.4, 0), fov: 32 },
+      { pos: toWorld(3, 4.7 * 1.5, 3.7, -3.22 * 1.5), look: toWorld(3, 4.7 * 0.7, 3.1, -3.22 * 0.7), fov: 33 },
+      { pos: toWorld(3, 0.5, 3.9, -6.1), look: toWorld(3, 0, 3.4, 0), fov: 30 },
+      { pos: toWorld(3, -3.22 * 1.5, 4.5, -4.7 * 1.5), look: toWorld(3, -3.22 * 0.7, 3.9, -4.7 * 0.7), fov: 33 },
+      { pos: toWorld(3, -5.5, 3.8, -1.2), look: toWorld(3, 0, 3.4, 0), fov: 32 },
+      { pos: toWorld(3, -4.7 * 1.5, 3.85, 3.22 * 1.5), look: toWorld(3, -4.7 * 0.7, 3.25, 3.22 * 0.7), fov: 33 },
+
+      // Ch4: Threshold (along dunes through portal)
+      { pos: toWorld(4, -11, 40, 110), look: toWorld(4, 0, 20, 50), fov: 50 },
+      { pos: toWorld(4, -4, 25, 75), look: toWorld(4, 0, 10, 20), fov: 52 },
+      { pos: toWorld(4, 0, 10, 35), look: toWorld(4, 0, 5, -10), fov: 54 },
+      { pos: toWorld(4, 0, 4, 12), look: toWorld(4, 0, 3, -25), fov: 56 },
+      { pos: toWorld(4, 0, 2, -10), look: toWorld(4, 0, 0, -40), fov: 56 },
+
+      // Ch5: Network (cybernetic canopy)
+      { pos: toWorld(5, 0, 18, 32), look: toWorld(5, 0, 5, 0), fov: 52 },
+      { pos: toWorld(5, 0, 8, 16), look: toWorld(5, 0, 2, -10), fov: 50 },
+
+      // Finale: Ascension
+      { pos: new THREE.Vector3(0, -200, -160), look: new THREE.Vector3(0, 0, 0), fov: 45 },
+    ];
+
+    const posPoints = shotData.map((s) => s.pos);
+    const lookPoints = shotData.map((s) => s.look);
+    const fovList = shotData.map((s) => s.fov);
+
+    const posCurve = new THREE.CatmullRomCurve3(posPoints, false, "centripetal", 0.5);
+    const lookCurve = new THREE.CatmullRomCurve3(lookPoints, false, "centripetal", 0.5);
+
+    // -------------------------------------------------------------
+    // The True Red Thread (Guide Wire - Thin 0.022m Closed Loop)
+    // -------------------------------------------------------------
+    const threadPoints = [
+      // Chapter 0: Origin (passes straight vertically through the reticle)
+      toWorld(0, 0, 140, 0),
+      toWorld(0, 0, 40, 0),
+      toWorld(0, 0, 9, 0),
+      toWorld(0, 0, 0, 0),
+      toWorld(0, 0, -9, 0),
+      toWorld(0, 0.5, -24, -3),
+      // Chapter 1: Memory (weaving through basalt pillars)
+      toWorld(1, -9, 26, 12),
+      toWorld(1, -5.2, 7, 2.2),
+      toWorld(1, -4.4, 3.5, 1.2),
+      toWorld(1, -4.3, 1.4, 1.25),
+      toWorld(1, -2.8, 0.75, 3.2),
+      toWorld(1, 1.8, 0.6, 4.6),
+      toWorld(1, 6.5, 1.2, 2.2),
+      toWorld(1, 12, 3.5, -8),
+      // Chapter 2: Refraction (passes directly through the center of the glass frame)
+      toWorld(2, 14, 3.5, 34),
+      toWorld(2, 6, 3.2, 18),
+      toWorld(2, 0.05, 4, 9),
+      toWorld(2, 0.05, 4, 4),
+      toWorld(2, 0.05, 4, 0),
+      toWorld(2, 0.05, 4, -12),
+      toWorld(2, -3, 8, -40),
+      // Chapter 3: The Work (wraps gracefully around the central pedestal and panels)
+      toWorld(3, 12, 11, 24),
+      toWorld(3, 5.5, 8.6, 7.5),
+      toWorld(3, 2.6, 6.2, 2.4),
+      toWorld(3, 2.9, 4.6, -1.6),
+      toWorld(3, 0.4, 4.3, -3.4),
+      toWorld(3, -2.9, 3.9, -1.9),
+      toWorld(3, -3, 3.5, 1.5),
+      toWorld(3, -1.2, 3.3, 2.6),
+      toWorld(3, -0.4, 3.25, 1.35),
+      toWorld(3, 0.05, 3.1, 0.62),
+      toWorld(3, 0.35, 2.8, -1.3),
+      toWorld(3, 0.7, 1.3, -3.5),
+      toWorld(3, 2.6, -1.4, -9.5),
+      // Chapter 4: Threshold (along the dunes into the doorway)
       toWorld(4, -11, 40, 110),
       toWorld(4, -6, 25, 75),
       toWorld(4, 0, 10, 35),
       toWorld(4, 0, 4, 12),
       toWorld(4, 0, 2, -10),
-      // Chapter 5: Network
+      // Chapter 5: Network (into the spire canopy)
       toWorld(5, 0, 18, 32),
       toWorld(5, 0, 8, 16),
       toWorld(5, 0, 2, -5),
-      // Chapter 6: Finale
-      new THREE.Vector3(0, -200, -160),
     ];
 
-    const cameraCurve = new THREE.CatmullRomCurve3(camWaypoints, false, "centripetal", 0.5);
+    const threadStart = threadPoints[0];
+    const threadEnd = threadPoints[threadPoints.length - 1];
+    threadPoints.push(new THREE.Vector3(threadEnd.x, threadEnd.y + 160, threadEnd.z));
+    threadPoints.push(new THREE.Vector3(threadEnd.x * 0.6 + threadStart.x * 0.4, 260, threadEnd.z * 0.6 + threadStart.z * 0.4));
+    threadPoints.push(new THREE.Vector3(threadStart.x * 0.8 + threadEnd.x * 0.2, threadStart.y + 220, threadStart.z * 0.8 + threadEnd.z * 0.2));
 
-    // -------------------------------------------------------------
-    // The Red Thread (Glowing Spline connecting chapters)
-    // -------------------------------------------------------------
-    const threadPoints: THREE.Vector3[] = [];
-    const threadSubdiv = 500;
-    for (let i = 0; i <= threadSubdiv; i++) {
-      const t = i / threadSubdiv;
-      const pt = cameraCurve.getPoint(t);
-      const jitter = new THREE.Vector3(
-        Math.sin(i * 0.18) * 0.45,
-        Math.cos(i * 0.14) * 0.35,
-        Math.sin(i * 0.22) * 0.3
-      );
-      threadPoints.push(pt.clone().add(jitter));
-    }
-    const threadCurve = new THREE.CatmullRomCurve3(threadPoints, false, "centripetal", 0.5);
-    const threadGeo = new THREE.TubeGeometry(threadCurve, 700, 0.07, 8, false);
-    const threadMat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color("#ff2a1a").multiplyScalar(3.2),
+    const threadCurve = new THREE.CatmullRomCurve3(threadPoints, true, "centripetal", 0.5);
+    const threadLength = threadCurve.getLength();
+    const threadGeo = new THREE.TubeGeometry(threadCurve, 1200, 0.022, 6, true);
+    const threadMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uColor: { value: new THREE.Color("#ff2a1a").multiplyScalar(3.2) },
+        uTime: { value: 0 },
+        uLength: { value: threadLength },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vWorld;
+        void main() {
+          vUv = uv;
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vWorld = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uTime;
+        uniform float uLength;
+        varying vec2 vUv;
+        varying vec3 vWorld;
+        void main() {
+          float L = vUv.x * uLength;
+          float train = pow(0.5 + 0.5 * sin(L * 0.21 - uTime * 4.2), 36.0);
+          float fine = pow(0.5 + 0.5 * sin(L * 1.9 - uTime * 11.0), 12.0) * 0.35;
+          float dist = distance(cameraPosition, vWorld);
+          float near = mix(0.4, 1.0, smoothstep(0.8, 6.0, dist));
+          vec3 col = uColor * (0.8 + train * 2.0 + fine) * near;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
     const threadMesh = new THREE.Mesh(threadGeo, threadMat);
     scene.add(threadMesh);
@@ -388,22 +559,22 @@ export default function Canvas3D({
     // -------------------------------------------------------------
     // Volumetric Dust Motes Particle Cloud
     // -------------------------------------------------------------
-    const dustCount = 2000;
+    const dustCount = 1800;
     const dustGeo = new THREE.BufferGeometry();
     const dustPositions = new Float32Array(dustCount * 3);
     for (let i = 0; i < dustCount; i++) {
       const t = Math.random();
-      const pt = cameraCurve.getPoint(t);
-      dustPositions[i * 3] = pt.x + (Math.random() - 0.5) * 50;
-      dustPositions[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 40;
-      dustPositions[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 50;
+      const pt = posCurve.getPoint(t);
+      dustPositions[i * 3] = pt.x + (Math.random() - 0.5) * 45;
+      dustPositions[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 35;
+      dustPositions[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 45;
     }
     dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPositions, 3));
     const dustMat = new THREE.PointsMaterial({
       color: new THREE.Color("#ffe4d4"),
-      size: 0.05,
+      size: 0.045,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.6,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
@@ -411,7 +582,7 @@ export default function Canvas3D({
     scene.add(dustPoints);
 
     // -------------------------------------------------------------
-    // Chapter 0: Origin (Orbiting Basalt Monoliths & Micro-shards)
+    // Chapter 0: Origin (HERO RETICLE, HUD TELEMETRY & BASALT RING)
     // -------------------------------------------------------------
     const basaltMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color("#3b3b40"),
@@ -419,30 +590,113 @@ export default function Canvas3D({
       metalness: 0.15,
     });
 
+    // 1. The Glowing Reticle Crosshairs Laser Ribbons (original u_)
+    const reticleGroup = new THREE.Group();
+    originGroup.add(reticleGroup);
+
+    const laserVert = createReticleLaser([0, -8.6, 0.01], [0, 8.6, 0.01], 0.22, "#ff2a18");
+    const laserHoriz = createReticleLaser([-9.2, 0, 0.01], [9.2, 0, 0.01], 0.22, "#ff2a18");
+    reticleGroup.add(laserVert, laserHoriz);
+
+    // Reticle Center Tick Marks
+    const tickOffsets: [number, number, number, number][] = [
+      [0, 1.6, 0.34, 0],
+      [0, -1.6, 0.34, 0],
+      [1.6, 0, 0.34, 1],
+      [-1.6, 0, 0.34, 1],
+      [0, 3.1, 0.2, 0],
+      [0, -3.1, 0.2, 0],
+      [3.1, 0, 0.2, 1],
+      [-3.1, 0, 0.2, 1],
+    ];
+
+    tickOffsets.forEach(([tx, ty, tlen, isHoriz]) => {
+      const pA: [number, number, number] = isHoriz ? [tx, -tlen, 0.01] : [-tlen, ty, 0.01];
+      const pB: [number, number, number] = isHoriz ? [tx, tlen, 0.01] : [tlen, ty, 0.01];
+      const tick = createReticleLaser(pA, pB, 0.08, "#ff3b20");
+      reticleGroup.add(tick);
+    });
+
+    // 2. The 4 Monospace HUD Telemetry Labels in 3D (original l_)
+    const hudLabels = [
+      createHudLabel(["SYSTEM_TARGET: ORIGIN", "SECTOR 00 · 0x3F9A"], 3.2, 0.52),
+      createHudLabel(["RANGE 14.20"], 1.6, 0.3),
+      createHudLabel(["THREAD_PROTOCOL: ACTIVE", "LOCK ▲ 00.0%"], 3.2, 0.52),
+      createHudLabel(["◢ ACQUIRING"], 1.6, 0.3),
+    ];
+
+    hudLabels[0].position.set(-4.3, 0.48, 0.02);
+    hudLabels[1].position.set(3.3, 0.34, 0.02);
+    hudLabels[2].position.set(4.5, -0.48, 0.02);
+    hudLabels[3].position.set(-3.3, -0.34, 0.02);
+    hudLabels.forEach((lbl) => reticleGroup.add(lbl));
+
+    // 3. Basalt Monoliths and Micro-Shards Ring (facing camera on XY plane at Z = 4.4)
+    const monolithRingGroup = new THREE.Group();
+    originGroup.add(monolithRingGroup);
+
     const monoliths: THREE.Mesh[] = [];
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const radius = 6.4 + (Math.random() - 0.5) * 0.8;
-      const geo = new THREE.BoxGeometry(1.4, 4.5 + Math.random() * 2.5, 1.4);
+    const monolithBases: { basePos: THREE.Vector3; ang: number }[] = [];
+    const ringRadius = 6.3;
+
+    for (let e = 0; e < 8; e++) {
+      const ang = Math.PI / 8 + (Math.PI / 4) * e + (Math.random() - 0.5) * 0.16;
+      const s = 1.75 + Math.random() * 0.85;
+      const geo = new THREE.BoxGeometry(1.22 * s, 0.85 * s, 1.0 * s);
       const mesh = new THREE.Mesh(geo, basaltMat);
-      mesh.position.set(Math.cos(angle) * radius, (Math.random() - 0.5) * 1.5, Math.sin(angle) * radius);
-      mesh.rotation.set(Math.random() * 0.4, Math.random() * Math.PI, Math.random() * 0.4);
+      const r = ringRadius + (Math.random() - 0.5) * 0.9;
+      mesh.position.set(Math.cos(ang) * r, Math.sin(ang) * r, 4.4 + (Math.random() - 0.5) * 0.8);
+      mesh.rotation.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      originGroup.add(mesh);
+      monolithRingGroup.add(mesh);
       monoliths.push(mesh);
+      monolithBases.push({ basePos: mesh.position.clone(), ang });
     }
 
     const shards: THREE.Mesh[] = [];
-    for (let i = 0; i < 14; i++) {
-      const geo = new THREE.TetrahedronGeometry(0.3 + Math.random() * 0.35);
+    for (let e = 0; e < 14; e++) {
+      const geo = new THREE.TetrahedronGeometry(0.25 + Math.random() * 0.25);
       const mesh = new THREE.Mesh(geo, basaltMat);
-      const angle = Math.random() * Math.PI * 2;
-      const r = 4 + Math.random() * 5;
-      mesh.position.set(Math.cos(angle) * r, (Math.random() - 0.5) * 3, Math.sin(angle) * r);
-      originGroup.add(mesh);
+      const ang = Math.random() * Math.PI * 2;
+      const r = ringRadius * (0.75 + Math.random() * 0.55);
+      mesh.position.set(Math.cos(ang) * r, Math.sin(ang) * r, 2.2 + Math.random() * 2.4);
+      mesh.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+      monolithRingGroup.add(mesh);
       shards.push(mesh);
     }
+
+    // 4. Swirling Ember Particles in Chapter 0 (replica of original Jg swirl)
+    const swirlCount = 900;
+    const swirlGeo = new THREE.BufferGeometry();
+    const swirlPositions = new Float32Array(swirlCount * 3);
+    const swirlColors = new Float32Array(swirlCount * 3);
+    const colA = new THREE.Color("#ff3a22");
+    const colB = new THREE.Color("#ffb08a");
+    for (let i = 0; i < swirlCount; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const rad = 0.8 + Math.random() * 6.5;
+      swirlPositions[i * 3] = Math.cos(ang) * rad;
+      swirlPositions[i * 3 + 1] = Math.sin(ang) * rad;
+      swirlPositions[i * 3 + 2] = (Math.random() - 0.5) * 1.8;
+
+      const c = colA.clone().lerp(colB, Math.random());
+      swirlColors[i * 3] = c.r;
+      swirlColors[i * 3 + 1] = c.g;
+      swirlColors[i * 3 + 2] = c.b;
+    }
+    swirlGeo.setAttribute("position", new THREE.BufferAttribute(swirlPositions, 3));
+    swirlGeo.setAttribute("color", new THREE.BufferAttribute(swirlColors, 3));
+    const swirlMat = new THREE.PointsMaterial({
+      size: 0.04,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const swirlPoints = new THREE.Points(swirlGeo, swirlMat);
+    originGroup.add(swirlPoints);
 
     // -------------------------------------------------------------
     // Chapter 1: Memory (Volcanic Earth & Basalt Pillars)
@@ -482,7 +736,7 @@ export default function Canvas3D({
     }
 
     // -------------------------------------------------------------
-    // Chapter 2: Refraction (Volcanic Magma Lake & Jagged Rocks)
+    // Chapter 2: Refraction (MONOLITHIC BEVELED TRANSMISSION GLASS FRAME)
     // -------------------------------------------------------------
     const lavaMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color("#ff3a1a").multiplyScalar(1.6),
@@ -493,6 +747,59 @@ export default function Canvas3D({
     lavaMesh.position.y = -5;
     refractionGroup.add(lavaMesh);
 
+    // Beveled Monolithic Glass Portal Frame
+    const frameW = 2.7;
+    const frameH = 4.5;
+    const frameBorder = 0.36;
+    const glassShape = new THREE.Shape();
+    glassShape.moveTo(-frameW / 2, -frameH / 2);
+    glassShape.lineTo(frameW / 2, -frameH / 2);
+    glassShape.lineTo(frameW / 2, frameH / 2);
+    glassShape.lineTo(-frameW / 2, frameH / 2);
+    glassShape.closePath();
+
+    const glassHole = new THREE.Path();
+    const holeW = (frameW - 2 * frameBorder) / 2;
+    const holeH = (frameH - 2 * frameBorder) / 2;
+    glassHole.moveTo(-holeW, -holeH);
+    glassHole.lineTo(holeW, -holeH);
+    glassHole.lineTo(holeW, holeH);
+    glassHole.lineTo(-holeW, holeH);
+    glassHole.closePath();
+    glassShape.holes.push(glassHole);
+
+    const glassGeo = new THREE.ExtrudeGeometry(glassShape, {
+      depth: 0.32,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.05,
+      bevelSegments: 4,
+      curveSegments: 6,
+    });
+    glassGeo.translate(0, 0, -0.16);
+
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color("#ffffff"),
+      roughness: 0.03,
+      metalness: 0,
+      transmission: 0.96,
+      thickness: 0.5,
+      ior: 1.5,
+      attenuationColor: new THREE.Color("#ffe7dc"),
+      attenuationDistance: 3,
+      specularIntensity: 1,
+      envMapIntensity: 1.1,
+      transparent: true,
+      opacity: 0.95,
+    });
+
+    const glassFrameMesh = new THREE.Mesh(glassGeo, glassMat);
+    glassFrameMesh.position.set(0.05, 4, 0.1);
+    glassFrameMesh.rotation.set(0, 0.18, -0.2);
+    glassFrameMesh.castShadow = true;
+    refractionGroup.add(glassFrameMesh);
+
+    // Jagged rocks emerging from volcanic ground
     for (let i = 0; i < 14; i++) {
       const geo = new THREE.DodecahedronGeometry(1.2 + Math.random() * 1.6);
       const rock = new THREE.Mesh(geo, basaltMat);
@@ -506,11 +813,11 @@ export default function Canvas3D({
     }
 
     // -------------------------------------------------------------
-    // Chapter 3: The Work (7 Rock Platforms, Swaying Grass & Orbiting Panels)
+    // Chapter 3: The Work (HERO FIGURE ON PEDESTAL + ORBITING PANELS)
     // -------------------------------------------------------------
     // 7 Basalt Platforms extracted from Q_
     const platformDefs = [
-      [0.0, 0.35, 0.0, 2.2],
+      [0.0, 0.35, 0.0, 2.2], // Center platform for Hero Figure
       [-9.5, 1.2, -6.0, 1.6],
       [10.5, 4.4, -4.5, 1.2],
       [-7.5, 6.8, 7.5, 0.9],
@@ -548,6 +855,74 @@ export default function Canvas3D({
     }
     grassInstanced.instanceMatrix.needsUpdate = true;
     workGroup.add(grassInstanced);
+
+    // Skinned Hero Character Model Loading (`figure.v2.glb` on Chapter 3 Pedestal)
+    const figureGroup = new THREE.Group();
+    figureGroup.position.set(0, 3.4, 0); // Placed at center of Chapter 3 pedestal
+    workGroup.add(figureGroup);
+
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    loader.load(
+      "/models/figure.v2.glb",
+      (gltf) => {
+        const model = gltf.scene;
+        model.scale.setScalar(2.0);
+        let headBone: THREE.Bone | null = null;
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh || (child as THREE.SkinnedMesh).isSkinnedMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            const mesh = child as THREE.Mesh;
+            if (mesh.material) {
+              const stdMat = mesh.material as THREE.MeshStandardMaterial;
+              stdMat.roughness = 0.88;
+              stdMat.metalness = 0.08;
+              stdMat.side = THREE.DoubleSide;
+            }
+          }
+          if ((child as THREE.Bone).isBone && child.name === "head") {
+            headBone = child as THREE.Bone;
+          }
+        });
+
+        // Glowing Eye Sprites
+        if (headBone) {
+          const eyeCanvas = document.createElement("canvas");
+          eyeCanvas.width = 64;
+          eyeCanvas.height = 64;
+          const ctx = eyeCanvas.getContext("2d");
+          if (ctx) {
+            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, "rgba(255, 255, 255, 1)");
+            grad.addColorStop(0.2, "rgba(255, 220, 160, 0.9)");
+            grad.addColorStop(0.5, "rgba(255, 80, 40, 0.3)");
+            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 64);
+          }
+          const eyeTexture = new THREE.CanvasTexture(eyeCanvas);
+          const eyeMat = new THREE.SpriteMaterial({
+            map: eyeTexture,
+            color: new THREE.Color("#ffeedd"),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+          });
+          for (const xOff of [-0.038, 0.038]) {
+            const eyeSprite = new THREE.Sprite(eyeMat);
+            eyeSprite.position.set(xOff, 0.85, 0.12);
+            eyeSprite.scale.setScalar(0.045);
+            (headBone as THREE.Bone).add(eyeSprite);
+          }
+        }
+
+        figureGroup.add(model);
+      },
+      undefined,
+      (err) => {
+        console.warn("Figure glb loading fallback:", err);
+      }
+    );
 
     // 4 Orbiting Project Panels (Radius 5.7m, Center Y: 3.4m)
     const textureLoader = new THREE.TextureLoader();
@@ -694,75 +1069,6 @@ export default function Canvas3D({
     finaleGroup.add(finaleLight);
 
     // -------------------------------------------------------------
-    // Skinned Character Model Loading (`figure.v2.glb` with Meshopt)
-    // -------------------------------------------------------------
-    const figureGroup = new THREE.Group();
-    scene.add(figureGroup);
-
-    const loader = new GLTFLoader();
-    loader.setMeshoptDecoder(MeshoptDecoder);
-    loader.load(
-      "/models/figure.v2.glb",
-      (gltf) => {
-        const model = gltf.scene;
-        model.scale.setScalar(2.0);
-        let headBone: THREE.Bone | null = null;
-        model.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh || (child as THREE.SkinnedMesh).isSkinnedMesh) {
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const mesh = child as THREE.Mesh;
-            if (mesh.material) {
-              const stdMat = mesh.material as THREE.MeshStandardMaterial;
-              stdMat.roughness = 0.88;
-              stdMat.metalness = 0.08;
-              stdMat.side = THREE.DoubleSide;
-            }
-          }
-          if ((child as THREE.Bone).isBone && child.name === "head") {
-            headBone = child as THREE.Bone;
-          }
-        });
-
-        // Glowing Eye Sprites
-        if (headBone) {
-          const eyeCanvas = document.createElement("canvas");
-          eyeCanvas.width = 64;
-          eyeCanvas.height = 64;
-          const ctx = eyeCanvas.getContext("2d");
-          if (ctx) {
-            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-            grad.addColorStop(0, "rgba(255, 255, 255, 1)");
-            grad.addColorStop(0.2, "rgba(255, 220, 160, 0.9)");
-            grad.addColorStop(0.5, "rgba(255, 80, 40, 0.3)");
-            grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 64, 64);
-          }
-          const eyeTexture = new THREE.CanvasTexture(eyeCanvas);
-          const eyeMat = new THREE.SpriteMaterial({
-            map: eyeTexture,
-            color: new THREE.Color("#ffeedd"),
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          });
-          for (const xOff of [-0.038, 0.038]) {
-            const eyeSprite = new THREE.Sprite(eyeMat);
-            eyeSprite.position.set(xOff, 0.85, 0.12);
-            eyeSprite.scale.setScalar(0.045);
-            (headBone as THREE.Bone).add(eyeSprite);
-          }
-        }
-
-        figureGroup.add(model);
-      },
-      undefined,
-      (err) => {
-        console.warn("Figure glb loading fallback:", err);
-      }
-    );
-
-    // -------------------------------------------------------------
     // Post-Processing Pipeline Setup (Fullscreen Quad + ShaderPass)
     // -------------------------------------------------------------
     let width = window.innerWidth;
@@ -833,7 +1139,7 @@ export default function Canvas3D({
           float asp = uResolution.x / uResolution.y;
           p.x *= asp;
 
-          // Barrel lens distortion
+          // Subtle lens barrel curvature
           float r2 = dot(p, p);
           vec2 pd = p * (1.0 + uLens * r2);
           vec2 distortedUv = pd;
@@ -851,17 +1157,17 @@ export default function Canvas3D({
             texture2D(tDiffuse, uvB).b
           );
 
-          // Speed motion streak: single additional sample when moving
+          // Speed motion streak: single subtle sample when moving
           if (uSpeed > 0.002) {
-            vec2 speedOffset = (uvG - 0.5) * uSpeed * 0.12;
+            vec2 speedOffset = (uvG - 0.5) * uSpeed * 0.08;
             vec3 blurSample = texture2D(tDiffuse, uvG - speedOffset).rgb;
-            col = mix(col, blurSample, 0.35);
+            col = mix(col, blurSample, 0.25);
           }
 
-          // Horizontal anamorphic flare streak
-          vec3 streakSample = texture2D(tDiffuse, vec2(uvG.x + 0.007, uvG.y)).rgb;
-          float bright = max(0.0, max(streakSample.r, max(streakSample.g, streakSample.b)) - 0.82);
-          col += bright * uStreakTint * uStreak * 1.5;
+          // Subtle horizontal flare streak
+          vec3 streakSample = texture2D(tDiffuse, vec2(uvG.x + 0.006, uvG.y)).rgb;
+          float bright = max(0.0, max(streakSample.r, max(streakSample.g, streakSample.b)) - 0.88);
+          col += bright * uStreakTint * uStreak * 1.2;
 
           // Lens dirt
           vec3 dirt = texture2D(tDirt, uv).rgb;
@@ -902,17 +1208,17 @@ export default function Canvas3D({
         tDirt: { value: dirtTexture },
         uResolution: { value: new THREE.Vector2(width * dpr, height * dpr) },
         uTime: { value: 0 },
-        uLens: { value: 0.05 },
-        uCA: { value: 0.0035 },
+        uLens: { value: 0.012 },
+        uCA: { value: 0.0016 },
         uSpeed: { value: 0 },
-        uGrain: { value: 0.07 },
+        uGrain: { value: 0.06 },
         uVignette: { value: 0.6 },
-        uStreak: { value: 0.35 },
+        uStreak: { value: 0.18 },
         uStreakTint: { value: new THREE.Color("#ff4a38") },
-        uDirt: { value: 0.6 },
+        uDirt: { value: 0.4 },
         uExposure: { value: 1.0 },
-        uContrast: { value: 1.08 },
-        uSaturation: { value: 1.04 },
+        uContrast: { value: 1.05 },
+        uSaturation: { value: 1.02 },
         uLift: { value: new THREE.Vector3(0, 0, 0) },
         uGain: { value: new THREE.Vector3(1, 1, 1) },
         uTint: { value: new THREE.Vector3(1, 1, 1) },
@@ -925,7 +1231,7 @@ export default function Canvas3D({
     postScene.add(postQuad);
 
     // -------------------------------------------------------------
-    // Native Window Scroll Reader (Original Fg replica)
+    // Native Window Scroll Reader
     // -------------------------------------------------------------
     let targetProgress = 0;
     let currentProgress = 0;
@@ -954,10 +1260,11 @@ export default function Canvas3D({
     window.addEventListener("resize", readScroll, { passive: true });
     readScroll();
 
-    // Smooth Chapter Jump Custom Event Listener
+    // Chapter Jump Listener
     const handleJump = (e: CustomEvent<{ chapter: number }>) => {
       const chapter = e.detail?.chapter ?? 0;
-      const targetPct = chapter <= 0 ? 0 : Math.min(1, chapter / 6);
+      const RAIL_FRACTIONS = [0, 0.1296, 0.2407, 0.3889, 0.7407, 0.8704];
+      const targetPct = RAIL_FRACTIONS[chapter] ?? (chapter <= 0 ? 0 : Math.min(1, chapter / 6));
       const storyEl = document.getElementById("scroll");
       const maxScroll = storyEl
         ? Math.max(1, storyEl.offsetHeight - window.innerHeight)
@@ -1002,7 +1309,6 @@ export default function Canvas3D({
     };
     window.addEventListener("resize", handleResize);
 
-    // High-Precision Animation Timer
     const timer = new THREE.Timer();
 
     // -------------------------------------------------------------
@@ -1022,36 +1328,66 @@ export default function Canvas3D({
       }
       scrollVel = Math.abs(currentProgress - prevProgress) / Math.max(1e-4, dt);
 
-      // Camera position along spiral CatmullRom curve
+      // Update thread time uniform for moving light train pulses
+      threadMat.uniforms.uTime.value = time;
+
+      // Camera position and look target along dual CatmullRom splines
       const safeProgress = Math.min(0.999, Math.max(0, currentProgress));
-      const camPos = cameraCurve.getPoint(safeProgress);
-      const lookPos = cameraCurve.getPoint(Math.min(0.999, safeProgress + 0.035));
+      const camPos = posCurve.getPoint(safeProgress);
+      const camLook = lookCurve.getPoint(safeProgress);
 
       camera.position.copy(camPos);
-      camera.lookAt(lookPos);
+      camera.lookAt(camLook);
+
+      // Smooth keyframed FOV interpolation matching original keyframes
+      const fovIdx = safeProgress * (fovList.length - 1);
+      const f0 = Math.floor(fovIdx);
+      const f1 = Math.min(fovList.length - 1, f0 + 1);
+      const fAlpha = fovIdx - f0;
+      camera.fov = fovList[f0] + (fovList[f1] - fovList[f0]) * fAlpha;
+      camera.updateProjectionMatrix();
 
       // Camera roll based on scroll velocity
-      const rollAmount = (targetProgress - currentProgress) * 0.45;
+      const rollAmount = (targetProgress - currentProgress) * 0.35;
       camera.rotation.z += rollAmount;
 
-      // Skinned figure follows slightly ahead along spline
-      const figPos = cameraCurve.getPoint(Math.min(0.999, safeProgress + 0.022));
-      figureGroup.position.copy(figPos);
-      figureGroup.position.y -= 1.8;
-      figureGroup.lookAt(lookPos);
-
       // Crimson accent point light tracking
-      redLight.position.copy(figPos);
-      redLight.position.y += 1.5;
+      redLight.position.copy(camPos).add(new THREE.Vector3(0, 2, 0));
 
-      // Animate Chapter 0 shards
+      // Animate Chapter 0 Monoliths Ring, Reticle, and Live Telemetry
+      monolithRingGroup.rotation.z = -0.5 + currentProgress * 0.9 + time * 0.012;
+      monolithRingGroup.rotation.y = Math.sin(time * 0.1) * 0.04;
+      swirlPoints.rotation.z += 0.003;
+
       shards.forEach((s, idx) => {
-        s.rotation.x += 0.01 * (idx % 2 === 0 ? 1 : -1);
-        s.rotation.y += 0.008;
+        s.rotation.x += 0.015 * (idx % 2 === 0 ? 1 : -1);
+        s.rotation.y += 0.012;
       });
-      monoliths.forEach((m, idx) => {
-        m.rotation.y += 0.002 * (idx % 2 === 0 ? 1 : -1);
-      });
+
+      // Reticle subtle parallax following pointer in Chapter 0
+      const targetReticleX = mouseNdc.x * 0.45;
+      const targetReticleY = mouseNdc.y * 0.45;
+      reticleGroup.position.x += (targetReticleX - reticleGroup.position.x) * 0.08;
+      reticleGroup.position.y += (targetReticleY - reticleGroup.position.y) * 0.08;
+
+      // Subtle pulse on reticle crosshairs
+      const laserPulse = 1.0 + Math.sin(time * 8.0) * 0.04;
+      reticleGroup.scale.set(laserPulse, laserPulse, 1.0);
+
+      // Dynamic telemetry readout updates
+      if (hudLabels.length >= 4) {
+        const lockAmt = Math.min(1, Math.max(0, currentProgress * 8));
+        const rangeVal = Math.max(0, 14.2 - lockAmt * 14.2 + Math.abs(mouseNdc.x) * 0.9).toFixed(2);
+        hudLabels[1].userData.draw?.([`RANGE ${rangeVal.padStart(5, "0")}`]);
+        hudLabels[2].userData.draw?.([
+          "THREAD_PROTOCOL: ACTIVE",
+          `LOCK ▲ ${(lockAmt * 100).toFixed(1).padStart(4, "0")}%`,
+        ]);
+        hudLabels[3].userData.draw?.([lockAmt > 0.95 ? "◢ LOCKED" : "◢ ACQUIRING"]);
+      }
+
+      // Animate Chapter 2 Glass Frame subtle levitation
+      glassFrameMesh.rotation.y = 0.18 + Math.sin(time * 0.8) * 0.02;
 
       // Animate Chapter 3 project platforms & Raycast Hover
       raycaster.setFromCamera(mouseNdc, camera);
@@ -1077,6 +1413,9 @@ export default function Canvas3D({
         grp.position.y = base.basePos.y + Math.sin(time * 1.5 + i * 1.5) * 0.08;
       });
 
+      // Subtle breathing on Hero Figure
+      figureGroup.position.y = 3.4 + Math.sin(time * 1.2) * 0.03;
+
       // Animate Chapter 4 portal ring rotation
       portalMesh.rotation.z += 0.01;
       coreMesh.scale.setScalar(1.0 + Math.sin(time * 4) * 0.08);
@@ -1093,9 +1432,9 @@ export default function Canvas3D({
       const blend = Math.max(0, Math.min(1, chapterProgress));
 
       // Dynamic distortion & aberration boosted by scroll speed
-      const curLens = (presetA.lens + (presetB.lens - presetA.lens) * blend) + Math.min(0.06, scrollVel * 0.06);
-      const curCA = (presetA.ca + (presetB.ca - presetA.ca) * blend) + Math.min(0.008, scrollVel * 0.015);
-      const curSpeed = Math.min(0.08, scrollVel * 0.04);
+      const curLens = (presetA.lens + (presetB.lens - presetA.lens) * blend) + Math.min(0.015, scrollVel * 0.012);
+      const curCA = (presetA.ca + (presetB.ca - presetA.ca) * blend) + Math.min(0.003, scrollVel * 0.004);
+      const curSpeed = Math.min(0.05, scrollVel * 0.025);
       const curVignette = presetA.vignette + (presetB.vignette - presetA.vignette) * blend;
       const curGrain = presetA.grain + (presetB.grain - presetA.grain) * blend;
       const curExposure = presetA.exposure + (presetB.exposure - presetA.exposure) * blend;
@@ -1133,9 +1472,7 @@ export default function Canvas3D({
 
     animId = requestAnimationFrame(animate);
 
-    // -------------------------------------------------------------
     // Cleanup
-    // -------------------------------------------------------------
     return () => {
       window.removeEventListener("scroll", readScroll);
       window.removeEventListener("resize", readScroll);
@@ -1148,10 +1485,9 @@ export default function Canvas3D({
       dirtTexture.dispose();
       renderer.dispose();
     };
-  }, []); // Empty dependency array ensures Canvas3D is mounted ONCE and never unmounted
+  }, []);
 
   return <canvas id="gl" ref={canvasRef} aria-hidden="true" />;
 }
 
 export { Canvas3D };
-

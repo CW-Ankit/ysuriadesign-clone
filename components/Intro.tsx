@@ -11,7 +11,7 @@ export function Intro({ opacity }: IntroProps) {
 
   return (
     <section
-      className="intro"
+      className={`intro ${opacity > 0.5 ? "on" : ""}`}
       id="intro"
       style={{
         opacity: opacity,
@@ -31,7 +31,7 @@ export function Intro({ opacity }: IntroProps) {
         <a
           href="https://jumper.exchange"
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener"
           onMouseEnter={() => sound.playSfx("hover")}
         >
           Jumper

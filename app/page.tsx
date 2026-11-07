@@ -104,7 +104,7 @@ export default function Home() {
         onSelectProject={handleSelectProjectByIndex}
       />
 
-      <div id="scroll" aria-hidden="true" style={{ height: "600vh" }}></div>
+      <div id="scroll" aria-hidden="true" style={{ height: "1748vh" }}></div>
 
       <main id="ui">
         <Header
