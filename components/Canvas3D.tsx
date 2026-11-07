@@ -516,36 +516,87 @@ export default function Canvas3D({
 
     const threadCurve = new THREE.CatmullRomCurve3(threadPoints, true, "centripetal", 0.5);
     const threadLength = threadCurve.getLength();
-    const threadGeo = new THREE.TubeGeometry(threadCurve, 1200, 0.022, 6, true);
+    const threadGeo = new THREE.TubeGeometry(threadCurve, 1600, 1, 6, true);
     const threadMat = new THREE.ShaderMaterial({
       uniforms: {
         uColor: { value: new THREE.Color("#ff2a1a").multiplyScalar(3.2) },
-        uTime: { value: 0 },
+        uRadius: { value: 0.022 },
+        uMinPx: { value: 0.0009 },
         uLength: { value: threadLength },
+        uPluck: { value: 1.0 },
+        uGain: { value: 1.0 },
+        uHead: { value: 0 },
+        uHeadAmt: { value: 1.0 },
+        uTime: { value: 0 },
+        uRayO: { value: new THREE.Vector3() },
+        uRayD: { value: new THREE.Vector3(0, 0, -1) },
+        uCursorVel: { value: 0 },
       },
       vertexShader: `
+        uniform float uRadius;
+        uniform float uMinPx;
+        uniform float uLength;
+        uniform float uPluck;
+        uniform float uTime;
+        uniform vec3 uRayO;
+        uniform vec3 uRayD;
+        uniform float uCursorVel;
+
         varying vec2 vUv;
         varying vec3 vWorld;
+        varying vec3 vNormal;
+
+        vec3 cursorAway(vec3 wp, out float dist, out float along) {
+          vec3 toP = wp - uRayO;
+          along = max(dot(toP, uRayD), 0.0);
+          vec3 cp = uRayO + uRayD * along;
+          vec3 away = wp - cp;
+          dist = length(away);
+          return away / max(dist, 1e-4);
+        }
+
         void main() {
+          vec3 center = position - normal;
+          float dist = distance(center, cameraPosition);
+          float r = max(uRadius, dist * uMinPx);
+          float d, along;
+          vec3 away = cursorAway(center, d, along);
+          float infl = exp(-d * d / (0.5 + along * 0.01)) * smoothstep(140.0, 0.0, along);
+          float L = uv.x * uLength;
+          float wob = sin(uTime * 34.0 - L * 1.7) * uCursorVel;
+          center += away * infl * (0.12 + 0.5 * uCursorVel + wob * 0.25) * uPluck;
+          vec3 wp = center + normal * r;
+
           vUv = uv;
-          vec4 wp = modelMatrix * vec4(position, 1.0);
-          vWorld = wp.xyz;
-          gl_Position = projectionMatrix * viewMatrix * wp;
+          vWorld = wp;
+          vNormal = normal;
+          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
         }
       `,
       fragmentShader: `
         uniform vec3 uColor;
-        uniform float uTime;
         uniform float uLength;
+        uniform float uTime;
+        uniform float uHead;
+        uniform float uHeadAmt;
+        uniform float uGain;
+
         varying vec2 vUv;
         varying vec3 vWorld;
+        varying vec3 vNormal;
+
         void main() {
+          vec3 V = normalize(cameraPosition - vWorld);
+          float facing = abs(dot(normalize(vNormal), V));
           float L = vUv.x * uLength;
           float train = pow(0.5 + 0.5 * sin(L * 0.21 - uTime * 4.2), 36.0);
           float fine = pow(0.5 + 0.5 * sin(L * 1.9 - uTime * 11.0), 12.0) * 0.35;
-          float dist = distance(cameraPosition, vWorld);
-          float near = mix(0.4, 1.0, smoothstep(0.8, 6.0, dist));
-          vec3 col = uColor * (0.8 + train * 2.0 + fine) * near;
+          float hd = (L - uHead) / 7.0;
+          float head = exp(-hd * hd) * uHeadAmt;
+          float core = pow(facing, 1.6);
+          float near = mix(0.4, 1.0, smoothstep(0.8, 6.0, distance(cameraPosition, vWorld)));
+          vec3 col = uColor * uGain * near * (0.45 + 1.3 * core) * (1.0 + train * 2.4 + fine + head * 5.0);
+          col += vec3(1.0, 0.82, 0.76) * (train * 0.9 + head * 2.5) * core * uGain * near;
           gl_FragColor = vec4(col, 1.0);
         }
       `,
@@ -861,6 +912,11 @@ export default function Canvas3D({
     figureGroup.position.set(0, 3.4, 0); // Placed at center of Chapter 3 pedestal
     workGroup.add(figureGroup);
 
+    const innerFigureGroup = new THREE.Group();
+    figureGroup.add(innerFigureGroup);
+
+    const figureBones: Record<string, THREE.Bone> = {};
+
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(
@@ -875,14 +931,19 @@ export default function Canvas3D({
             child.receiveShadow = true;
             const mesh = child as THREE.Mesh;
             if (mesh.material) {
-              const stdMat = mesh.material as THREE.MeshStandardMaterial;
-              stdMat.roughness = 0.88;
-              stdMat.metalness = 0.08;
+              const stdMat = (mesh.material as THREE.MeshStandardMaterial).clone();
+              stdMat.roughness = 0.45;
+              stdMat.metalness = 0.1;
               stdMat.side = THREE.DoubleSide;
+              mesh.material = stdMat;
             }
           }
-          if ((child as THREE.Bone).isBone && child.name === "head") {
-            headBone = child as THREE.Bone;
+          if ((child as THREE.Bone).isBone) {
+            const bone = child as THREE.Bone;
+            figureBones[bone.name] = bone;
+            if (bone.name === "head") {
+              headBone = bone;
+            }
           }
         });
 
@@ -916,7 +977,7 @@ export default function Canvas3D({
           }
         }
 
-        figureGroup.add(model);
+        innerFigureGroup.add(model);
       },
       undefined,
       (err) => {
@@ -974,7 +1035,9 @@ export default function Canvas3D({
       const mediaGeo = new THREE.PlaneGeometry(3.4, 2.0);
       const mediaMesh = new THREE.Mesh(mediaGeo, mediaMat);
       mediaMesh.position.z = 0.075;
+      mediaMesh.userData = { projectIndex: idx };
       panelGrp.add(mediaMesh);
+      panelSlabs.push(mediaMesh);
 
       // Accent Rim Point Light
       const pLight = new THREE.PointLight(projectColors[idx], 2.4, 7);
@@ -1274,15 +1337,19 @@ export default function Canvas3D({
     window.addEventListener("jump-to-chapter" as any, handleJump);
 
     // -------------------------------------------------------------
-    // Interactive 3D Raycasting on Project Slabs
+    // Interactive 3D Raycasting on Project Slabs & Thread Plucking
     // -------------------------------------------------------------
     const raycaster = new THREE.Raycaster();
     const mouseNdc = new THREE.Vector2(-999, -999);
+    const targetNdc = new THREE.Vector2(0, 0);
+    const prevCursor = new THREE.Vector2();
+    let cursorVel = 0;
     let hoveredIndex = -1;
 
     const handlePointerMove = (e: MouseEvent) => {
-      mouseNdc.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseNdc.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      targetNdc.x = (e.clientX / window.innerWidth) * 2 - 1;
+      targetNdc.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      mouseNdc.copy(targetNdc);
     };
 
     const handleClick = () => {
@@ -1328,8 +1395,21 @@ export default function Canvas3D({
       }
       scrollVel = Math.abs(currentProgress - prevProgress) / Math.max(1e-4, dt);
 
-      // Update thread time uniform for moving light train pulses
+      // Compute cursor velocity and world ray for ribbon displacement
+      const cursorDist = targetNdc.distanceTo(prevCursor);
+      prevCursor.copy(targetNdc);
+      cursorVel += (Math.min(cursorDist / Math.max(dt, 0.001), 10) - cursorVel) * (1 - Math.exp(-6 * dt));
+
+      raycaster.setFromCamera(targetNdc, camera);
+      const rayO = raycaster.ray.origin;
+      const rayD = raycaster.ray.direction;
+
+      // Update thread uniforms for dynamic pluck and traveling light pulse
       threadMat.uniforms.uTime.value = time;
+      threadMat.uniforms.uHead.value = (time * 12) % threadLength;
+      threadMat.uniforms.uCursorVel.value = cursorVel;
+      threadMat.uniforms.uRayO.value.copy(rayO);
+      threadMat.uniforms.uRayD.value.copy(rayD);
 
       // Camera position and look target along dual CatmullRom splines
       const safeProgress = Math.min(0.999, Math.max(0, currentProgress));
@@ -1365,8 +1445,8 @@ export default function Canvas3D({
       });
 
       // Reticle subtle parallax following pointer in Chapter 0
-      const targetReticleX = mouseNdc.x * 0.45;
-      const targetReticleY = mouseNdc.y * 0.45;
+      const targetReticleX = targetNdc.x * 0.45;
+      const targetReticleY = targetNdc.y * 0.45;
       reticleGroup.position.x += (targetReticleX - reticleGroup.position.x) * 0.08;
       reticleGroup.position.y += (targetReticleY - reticleGroup.position.y) * 0.08;
 
@@ -1377,7 +1457,7 @@ export default function Canvas3D({
       // Dynamic telemetry readout updates
       if (hudLabels.length >= 4) {
         const lockAmt = Math.min(1, Math.max(0, currentProgress * 8));
-        const rangeVal = Math.max(0, 14.2 - lockAmt * 14.2 + Math.abs(mouseNdc.x) * 0.9).toFixed(2);
+        const rangeVal = Math.max(0, 14.2 - lockAmt * 14.2 + Math.abs(targetNdc.x) * 0.9).toFixed(2);
         hudLabels[1].userData.draw?.([`RANGE ${rangeVal.padStart(5, "0")}`]);
         hudLabels[2].userData.draw?.([
           "THREAD_PROTOCOL: ACTIVE",
@@ -1390,7 +1470,6 @@ export default function Canvas3D({
       glassFrameMesh.rotation.y = 0.18 + Math.sin(time * 0.8) * 0.02;
 
       // Animate Chapter 3 project platforms & Raycast Hover
-      raycaster.setFromCamera(mouseNdc, camera);
       const intersects = raycaster.intersectObjects(panelSlabs, false);
       let newHovered = -1;
       if (intersects.length > 0) {
@@ -1403,18 +1482,35 @@ export default function Canvas3D({
           sound.playSfx("hover");
         }
         hoveredIndex = newHovered;
+        canvas.style.cursor = hoveredIndex >= 0 ? "pointer" : "default";
       }
 
       panelMeshes.forEach((grp, i) => {
         const isHovered = hoveredIndex === i;
         const base = panelBases[i];
-        const targetScale = isHovered ? 1.06 : 1.0;
-        grp.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+        const targetScale = isHovered ? 1.08 : 1.0;
+        grp.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.12);
         grp.position.y = base.basePos.y + Math.sin(time * 1.5 + i * 1.5) * 0.08;
       });
 
-      // Subtle breathing on Hero Figure
-      figureGroup.position.y = 3.4 + Math.sin(time * 1.2) * 0.03;
+      // Procedural floating, head tracking and bone animation on Figure
+      innerFigureGroup.position.y = Math.sin(time * 1.5) * 0.12;
+      innerFigureGroup.rotation.y = Math.sin(time * 0.5) * 0.08 + targetNdc.x * 0.15;
+      innerFigureGroup.rotation.x = -targetNdc.y * 0.1;
+
+      if (figureBones.head) {
+        figureBones.head.rotation.y = targetNdc.x * 0.3 + Math.sin(time * 1.2) * 0.05;
+        figureBones.head.rotation.x = -targetNdc.y * 0.25 + Math.sin(time * 1.8) * 0.03;
+      }
+      if (figureBones.spine) {
+        figureBones.spine.rotation.x = Math.sin(time * 1.5) * 0.04;
+      }
+      if (figureBones.upper_armL) {
+        figureBones.upper_armL.rotation.z = -0.3 + Math.sin(time * 1.2) * 0.06;
+      }
+      if (figureBones.upper_armR) {
+        figureBones.upper_armR.rotation.z = 0.3 - Math.sin(time * 1.2) * 0.06;
+      }
 
       // Animate Chapter 4 portal ring rotation
       portalMesh.rotation.z += 0.01;
