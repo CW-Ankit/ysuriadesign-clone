@@ -14,7 +14,6 @@ import { IndexMenu } from "@/components/IndexMenu";
 import { WorkModal } from "@/components/WorkModal";
 import { WorkLabels } from "@/components/WorkLabels";
 import { CustomCursor } from "@/components/CustomCursor";
-import { AwwwardsBadge } from "@/components/AwwwardsBadge";
 import { Footer } from "@/components/Footer";
 import { Loader } from "@/components/Loader";
 
@@ -89,7 +88,6 @@ export default function Home() {
       />
 
       <CustomCursor />
-      <AwwwardsBadge />
 
       <Canvas3D
         onProgressUpdate={handleProgressUpdate}
