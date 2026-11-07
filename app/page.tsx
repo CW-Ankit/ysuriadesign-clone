@@ -63,14 +63,23 @@ export default function Home() {
     []
   );
 
-  const handleSelectProject = (project: Project) => {
+  const handleSelectProject = useCallback((project: Project) => {
     setSelectedProject(project);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleSelectProjectByIndex = useCallback(
+    (idx: number) => {
+      if (PROJECTS[idx]) {
+        handleSelectProject(PROJECTS[idx]);
+      }
+    },
+    [handleSelectProject]
+  );
+
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
-  };
+  }, []);
 
   const introOpacity = Math.max(0, 1 - scrollProgress * 10);
   const cueOpacity = Math.max(0, 1 - scrollProgress * 15);
@@ -91,11 +100,7 @@ export default function Home() {
 
       <Canvas3D
         onProgressUpdate={handleProgressUpdate}
-        onSelectProject={(idx) => {
-          if (PROJECTS[idx]) {
-            handleSelectProject(PROJECTS[idx]);
-          }
-        }}
+        onSelectProject={handleSelectProjectByIndex}
       />
 
       <div id="scroll" aria-hidden="true" style={{ height: "600vh" }}></div>
