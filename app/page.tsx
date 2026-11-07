@@ -100,7 +100,7 @@ export default function Home() {
         }}
       />
 
-      <div id="scroll" aria-hidden="true" style={{ height: "700vh" }}></div>
+      <div id="scroll" aria-hidden="true" style={{ height: "1800vh" }}></div>
 
       <main id="ui">
         <Header
