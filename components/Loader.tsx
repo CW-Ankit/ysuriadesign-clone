@@ -43,6 +43,20 @@ export function Loader({ isAssetsLoaded, onEnter }: LoaderProps) {
     }, 800);
   };
 
+  useEffect(() => {
+    const handleDismiss = () => {
+      if (isReady && !isDone) {
+        handleEnter(false);
+      }
+    };
+    window.addEventListener("wheel", handleDismiss, { passive: true });
+    window.addEventListener("touchmove", handleDismiss, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", handleDismiss);
+      window.removeEventListener("touchmove", handleDismiss);
+    };
+  }, [isReady, isDone]);
+
   return (
     <div
       id="loader"

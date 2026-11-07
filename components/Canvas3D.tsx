@@ -653,7 +653,7 @@ export function Canvas3D({
     // -------------------------------------------------------------
     let width = window.innerWidth;
     let height = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    const dpr = Math.min(window.devicePixelRatio, 1.5);
 
     let renderTarget = new THREE.WebGLRenderTarget(width * dpr, height * dpr, {
       minFilter: THREE.LinearFilter,
@@ -731,31 +731,24 @@ export function Canvas3D({
           vec2 uvG = distortedUv;
           vec2 uvB = (pd * (1.0 - uCA)) / vec2(asp, 1.0) * 0.5 + 0.5;
 
-          vec3 col;
-          // Speed radial streak motion blur
-          if (uSpeed > 0.001) {
-            vec3 acc = vec3(0.0);
-            for (int i = 0; i < 6; i++) {
-              float sc = 1.0 - float(i) * uSpeed * 0.035;
-              vec2 r = (uvR - 0.5) * sc + 0.5;
-              vec2 g = (uvG - 0.5) * sc + 0.5;
-              vec2 b = (uvB - 0.5) * sc + 0.5;
-              acc += vec3(texture2D(tDiffuse, r).r, texture2D(tDiffuse, g).g, texture2D(tDiffuse, b).b);
-            }
-            col = acc / 6.0;
-          } else {
-            col = vec3(texture2D(tDiffuse, uvR).r, texture2D(tDiffuse, uvG).g, texture2D(tDiffuse, uvB).b);
+          // Fast spectral chromatic aberration
+          vec3 col = vec3(
+            texture2D(tDiffuse, uvR).r,
+            texture2D(tDiffuse, uvG).g,
+            texture2D(tDiffuse, uvB).b
+          );
+
+          // Speed motion streak: single additional sample when moving
+          if (uSpeed > 0.002) {
+            vec2 speedOffset = (uvG - 0.5) * uSpeed * 0.12;
+            vec3 blurSample = texture2D(tDiffuse, uvG - speedOffset).rgb;
+            col = mix(col, blurSample, 0.35);
           }
 
-          // Anamorphic horizontal flare streak
-          vec3 streakCol = vec3(0.0);
-          for (int i = -4; i <= 4; i++) {
-            float offset = float(i) * 0.0055;
-            vec3 s = texture2D(tDiffuse, uvG + vec2(offset, 0.0)).rgb;
-            float bright = max(0.0, max(s.r, max(s.g, s.b)) - 0.82);
-            streakCol += bright * uStreakTint * (1.0 / (abs(float(i)) + 1.2));
-          }
-          col += streakCol * uStreak;
+          // Horizontal anamorphic flare streak: fast offset tap
+          vec3 streakSample = texture2D(tDiffuse, vec2(uvG.x + 0.007, uvG.y)).rgb;
+          float bright = max(0.0, max(streakSample.r, max(streakSample.g, streakSample.b)) - 0.82);
+          col += bright * uStreakTint * uStreak * 1.5;
 
           // Lens dirt
           vec3 dirt = texture2D(tDirt, uv).rgb;
@@ -835,7 +828,38 @@ export function Canvas3D({
       targetProgress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      const storyEl = document.getElementById("scroll");
+      const maxScroll = storyEl
+        ? Math.max(1, storyEl.offsetHeight - window.innerHeight)
+        : Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      
+      const delta = e.deltaY * 0.00065;
+      targetProgress = Math.min(1, Math.max(0, targetProgress + delta));
+      window.scrollTo({ top: targetProgress * maxScroll, behavior: "instant" as ScrollBehavior });
+    };
+
+    let touchStartY = 0;
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      const dy = touchStartY - e.touches[0].clientY;
+      touchStartY = e.touches[0].clientY;
+      const storyEl = document.getElementById("scroll");
+      const maxScroll = storyEl
+        ? Math.max(1, storyEl.offsetHeight - window.innerHeight)
+        : Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      
+      const delta = dy * 0.001;
+      targetProgress = Math.min(1, Math.max(0, targetProgress + delta));
+      window.scrollTo({ top: targetProgress * maxScroll, behavior: "instant" as ScrollBehavior });
+    };
+
     window.addEventListener("scroll", readScroll, { passive: true });
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
     window.addEventListener("resize", readScroll);
     readScroll();
 
@@ -878,7 +902,7 @@ export function Canvas3D({
 
       // Exponential damping on scroll progression (natural spring/decay)
       prevProgress = currentProgress;
-      currentProgress += (targetProgress - currentProgress) * (1 - Math.exp(-2.8 * delta));
+      currentProgress += (targetProgress - currentProgress) * (1 - Math.exp(-4.2 * delta));
       scrollVel = Math.abs((currentProgress - prevProgress) / Math.max(0.001, delta));
 
       // Camera position along curve
@@ -981,6 +1005,9 @@ export function Canvas3D({
     // -------------------------------------------------------------
     return () => {
       window.removeEventListener("scroll", readScroll);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("jump-to-chapter" as any, handleJump);
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animId);
