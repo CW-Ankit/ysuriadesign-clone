@@ -1085,6 +1085,125 @@ body.work-card .chapter {
   inset: 0;
 }
 
+.wm-cap {
+  color: var(--ink);
+  pointer-events: none;
+  background: #00000073;
+  border-radius: 999px;
+  padding: 6px 10px;
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  font-size: 11px;
+  z-index: 5;
+}
+
+.wm-cap-hi {
+  top: 12px;
+  bottom: auto;
+}
+
+/* Frame Tags Component (Chapter 2 Refraction) */
+.frame-tags {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.ft-tag {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  transition: opacity 0.35s var(--ease);
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.ft-tag.on {
+  opacity: 1;
+}
+
+.ft-dot {
+  background: var(--ink);
+  width: 6px;
+  height: 6px;
+  transition: transform 0.4s var(--ease);
+  border-radius: 50%;
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  transform: scale(0);
+  box-shadow: 0 0 10px #fff9;
+}
+
+.ft-lead {
+  background: var(--ink-2);
+  width: 56px;
+  height: 1px;
+  transition: transform 0.5s var(--ease) 0.1s;
+  position: absolute;
+  top: 0;
+  transform: scaleX(0);
+}
+
+.ft-tag.r .ft-lead {
+  transform-origin: 0;
+  left: 6px;
+}
+
+.ft-tag.l .ft-lead {
+  transform-origin: 100%;
+  right: 6px;
+}
+
+.ft-tag span {
+  white-space: nowrap;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  filter: blur(6px);
+  transition: opacity 0.5s var(--ease) 0.25s, transform 0.6s var(--ease) 0.25s, filter 0.5s var(--ease) 0.25s;
+  background: #0a08088c;
+  border-radius: 999px;
+  padding: 7px 11px;
+  position: absolute;
+  top: -13px;
+  transform: translateY(6px);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.ft-tag.r span {
+  left: 68px;
+}
+
+.ft-tag.l span {
+  right: 68px;
+}
+
+.ft-tag.on .ft-dot {
+  transform: scale(1);
+}
+
+.ft-tag.on .ft-lead {
+  transform: scaleX(1);
+}
+
+.ft-tag.on span {
+  opacity: 1;
+  filter: blur(0);
+  transform: none;
+}
+
+body.frame-tags-on .chapter {
+  opacity: 0.12;
+  transition: opacity 0.4s var(--ease);
+}
+
 @keyframes wm-in {
   0% {
     opacity: 0;

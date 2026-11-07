@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Image from "next/image";
 import { Project } from "@/data/site-data";
 import { sound } from "@/lib/sound";
 
@@ -12,48 +11,62 @@ interface WorkModalProps {
 }
 
 export function WorkModal({ project, isOpen, onClose }: WorkModalProps) {
+  const [displayedProject, setDisplayedProject] = useState<Project | null>(project);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (project) {
+      setDisplayedProject(project);
+    }
+  }, [project]);
 
   useEffect(() => {
     if (isOpen) {
       setActiveMediaIndex(0);
       document.documentElement.classList.add("modal-open");
       sound.playSfx("open");
+      sound.setModalDucking(true);
     } else {
       document.documentElement.classList.remove("modal-open");
+      sound.setModalDucking(false);
     }
 
     return () => {
       document.documentElement.classList.remove("modal-open");
+      sound.setModalDucking(false);
     };
   }, [isOpen]);
 
+  const handleClose = () => {
+    sound.playSfx("close");
+    onClose();
+  };
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen || !project) return;
+      if (!isOpen || !displayedProject) return;
       if (e.key === "Escape") {
-        onClose();
+        handleClose();
       } else if (e.key === "ArrowRight") {
-        setActiveMediaIndex((prev) => (prev + 1) % project.media.length);
+        setActiveMediaIndex((prev) => (prev + 1) % displayedProject.media.length);
         sound.playSfx("hover");
       } else if (e.key === "ArrowLeft") {
-        setActiveMediaIndex((prev) => (prev - 1 + project.media.length) % project.media.length);
+        setActiveMediaIndex((prev) => (prev - 1 + displayedProject.media.length) % displayedProject.media.length);
         sound.playSfx("hover");
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, project, onClose]);
+  }, [isOpen, displayedProject]);
 
-  if (!isOpen || !project) return null;
-
-  const currentMedia = project.media[activeMediaIndex];
+  const currentMedia = displayedProject?.media[activeMediaIndex];
 
   const handleStep = (delta: number) => {
+    if (!displayedProject) return;
     setActiveMediaIndex((prev) => {
-      const total = project.media.length;
+      const total = displayedProject.media.length;
       return (prev + delta + total) % total;
     });
     sound.playSfx("hover");
@@ -65,26 +78,27 @@ export function WorkModal({ project, isOpen, onClose }: WorkModalProps) {
       id="work-modal"
       role="dialog"
       aria-modal="true"
+      aria-hidden={!isOpen}
       aria-labelledby="wm-title"
-      style={{ "--pc": project.color } as React.CSSProperties}
+      style={{ "--pc": displayedProject?.color || "#3b7bff" } as React.CSSProperties}
     >
       <div
         className="wm-backdrop"
-        onClick={onClose}
+        onClick={handleClose}
         data-close
       ></div>
 
       <article className="wm-glass">
         <header className="wm-head">
           <h3 className="wm-title" id="wm-title">
-            {project.name}
+            {displayedProject?.name}
           </h3>
           <p className="wm-desc" id="wm-desc">
-            {project.desc}
+            {displayedProject?.desc}
           </p>
           <button
             className="wm-close"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             onMouseEnter={() => sound.playSfx("hover")}
           >
@@ -117,27 +131,30 @@ export function WorkModal({ project, isOpen, onClose }: WorkModalProps) {
               loop={!currentMedia.sound}
             />
           ) : currentMedia ? (
-            <Image
+            <img
               key={currentMedia.src}
               src={currentMedia.src}
-              alt={project.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 800px"
-              priority
-              style={{ objectFit: "contain" }}
+              alt={`${displayedProject?.name || "Work"} — sample ${activeMediaIndex + 1}`}
+              decoding="async"
             />
           ) : null}
+
+          {currentMedia?.label && (
+            <p className={`wm-cap mono ${currentMedia.sound ? "wm-cap-hi" : ""}`}>
+              {currentMedia.label}
+            </p>
+          )}
         </div>
 
         <footer className="wm-foot">
           <div className="wm-thumbs" id="wm-thumbs">
-            {project.media.map((med, idx) => {
+            {displayedProject?.media.map((med, idx) => {
               const isSelected = idx === activeMediaIndex;
               return (
                 <button
                   key={idx}
                   className={`wm-thumb ${isSelected ? "on" : ""}`}
-                  aria-label={med.label || `${project.name} — ${idx + 1}`}
+                  aria-label={med.label || `${displayedProject.name} — ${idx + 1}`}
                   onClick={() => {
                     setActiveMediaIndex(idx);
                     sound.playSfx("click");
@@ -150,14 +167,20 @@ export function WorkModal({ project, isOpen, onClose }: WorkModalProps) {
                   }
                 >
                   {med.type === "video" && (
-                    <video
-                      src={med.thumb || med.src}
-                      muted
-                      playsInline
-                      preload="metadata"
-                    />
+                    <>
+                      <video
+                        src={med.thumb || med.src}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          const v = e.currentTarget;
+                          v.currentTime = Math.min(1.2, (v.duration || 2) / 3);
+                        }}
+                      />
+                      <span className="mono">{med.label || "Film"}</span>
+                    </>
                   )}
-                  <span className="mono">{med.label || "Film"}</span>
                 </button>
               );
             })}

@@ -14,12 +14,10 @@ export function WorkLabels({
   isVisible,
   onSelectProject,
 }: WorkLabelsProps) {
-  if (!isVisible) return null;
-
   return (
-    <div className="work-labels" id="work-labels">
+    <div className="work-labels" id="work-labels" aria-hidden={!isVisible}>
       {PROJECTS.map((proj, idx) => {
-        const isCurrent = idx === activeProjectIndex;
+        const isCurrent = isVisible && idx === activeProjectIndex;
         const numStr = String(idx + 1).padStart(2, "0");
 
         return (
@@ -32,13 +30,14 @@ export function WorkLabels({
               onSelectProject(proj);
             }}
             onMouseEnter={() => sound.playSfx("hover")}
+            tabIndex={isCurrent ? 0 : -1}
           >
             <div className="wl-row mono">
               <span className="wl-num">{numStr}</span>
               <span className="wl-rule"></span>
-              <span>{proj.tag}</span>
+              <span className="wl-tag">{proj.tag}</span>
             </div>
-            <h3 className="wl-name">{proj.name}</h3>
+            <span className="wl-name">{proj.name}</span>
             <span className="wl-cta mono">
               Explore work <i aria-hidden="true">↗</i>
             </span>

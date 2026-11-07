@@ -25,7 +25,7 @@ export function Loader({ isAssetsLoaded, onEnter }: LoaderProps) {
       } else {
         setProgress(Math.floor(current));
       }
-    }, 45);
+    }, 40);
 
     return () => clearInterval(interval);
   }, []);
@@ -43,24 +43,11 @@ export function Loader({ isAssetsLoaded, onEnter }: LoaderProps) {
     }, 800);
   };
 
-  useEffect(() => {
-    const handleDismiss = () => {
-      if (isReady && !isDone) {
-        handleEnter(false);
-      }
-    };
-    window.addEventListener("wheel", handleDismiss, { passive: true });
-    window.addEventListener("touchmove", handleDismiss, { passive: true });
-    return () => {
-      window.removeEventListener("wheel", handleDismiss);
-      window.removeEventListener("touchmove", handleDismiss);
-    };
-  }, [isReady, isDone]);
-
   return (
     <div
       id="loader"
       className={`${isReady ? "ready" : ""} ${isDone ? "done" : ""}`}
+      aria-hidden={isDone}
     >
       <div className="loader-inner">
         <p className="mono loader-k">Tying the thread</p>

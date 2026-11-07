@@ -13,6 +13,7 @@ import { BasicPortfolioPill } from "@/components/BasicPortfolioPill";
 import { IndexMenu } from "@/components/IndexMenu";
 import { WorkModal } from "@/components/WorkModal";
 import { WorkLabels } from "@/components/WorkLabels";
+import { FrameTags } from "@/components/FrameTags";
 import { CustomCursor } from "@/components/CustomCursor";
 import { Footer } from "@/components/Footer";
 import { Loader } from "@/components/Loader";
@@ -121,6 +122,8 @@ export default function Home() {
           progress={chapterProgress}
           isActive={isChapterActive}
         />
+
+        <FrameTags isActive={currentChapter === 2} />
 
         <WorkLabels
           activeProjectIndex={activeProjectIndex}
